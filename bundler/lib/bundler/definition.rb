@@ -137,7 +137,7 @@ module Bundler
       if @unlock[:conservative]
         @unlock[:gems] ||= @dependencies.map(&:name)
       else
-        eager_unlock = expand_dependencies(@unlock[:gems] || [], true)
+        eager_unlock = expand_dependencies(@unlock[:gems] || [])
         @unlock[:gems] = @locked_specs.for(eager_unlock, false, false).map(&:name)
       end
 
@@ -266,7 +266,7 @@ module Bundler
         else
           # Run a resolve against the locally available gems
           Bundler.ui.debug("Found changes from the lockfile, re-resolving dependencies because #{change_reason}")
-          expanded_dependencies = expand_dependencies(dependencies + metadata_dependencies, @remote)
+          expanded_dependencies = expand_dependencies(dependencies + metadata_dependencies)
           Resolver.resolve(expanded_dependencies, source_requirements, last_resolve, gem_version_promoter, additional_base_requirements_for_resolve, platforms)
         end
       end
@@ -731,7 +731,7 @@ module Bundler
       end
 
       resolve = SpecSet.new(converged)
-      SpecSet.new(resolve.for(expand_dependencies(deps, true), false, false).reject{|s| @unlock[:gems].include?(s.name) })
+      SpecSet.new(resolve.for(expand_dependencies(deps), false, false).reject{|s| @unlock[:gems].include?(s.name) })
     end
 
     def metadata_dependencies
@@ -760,12 +760,11 @@ module Bundler
       end
     end
 
-    def expand_dependencies(dependencies, remote = false)
+    def expand_dependencies(dependencies)
       deps = []
       dependencies.each do |dep|
         dep = Dependency.new(dep, ">= 0") unless dep.respond_to?(:name)
-        next unless remote || dep.current_platform?
-        target_platforms = dep.gem_platforms(remote ? @platforms : [generic_local_platform])
+        target_platforms = dep.gem_platforms(@platforms)
         deps += expand_dependency_with_platforms(dep, target_platforms)
       end
       deps
